@@ -38,6 +38,7 @@ class HessBox:
         self.ymin=ymin
         self.xmax=xmax
         self.ymax=ymax
+        self.center = 0.5*array([self.xmin+self.xmax, self.ymin+self.ymax])
         self.coords=array([xmin,ymin,xmax,ymax])
         self.mass_intervals=array([])
         self.IMF_weight=0.0
@@ -109,48 +110,34 @@ class HessBox:
             Mhi=max(point)
             IMF_weight += N(Mhi,alpha) - N(Mlo,alpha)
         self.IMF_weight = IMF_weight
+
+
+
+
+
+
+
+#example of how to run the code:
         
+if __name__ == '__main__':
+    p000=ISOCMD('/data/MIST/MIST_v1.0_UBVRIplus/MIST_v1.0_feh_p0.00_afe_p0.0_vvcrit0.4_UBVRIplus.iso.cmd')
 
-p000=ISOCMD('/data/MIST/MIST_v1.0_UBVRIplus/MIST_v1.0_feh_p0.00_afe_p0.0_vvcrit0.4_UBVRIplus.iso.cmd')
+    #isochrone logAge=9.6, excluding TP- and post-AGB
+    iso=p000.isocmds[92]
+    iso=iso[iso['EEP']<=808]
 
-#isochrone example 9.6 
-tmp_iso=p000.isocmds[92]
-iso=tmp_iso[tmp_iso['EEP']<=808]
+    H=HessDiagram(0.5,8,2.5,23,100,100)
+    H.add_iso(iso,DM=10)
+    H.do_mass_intervals()
+    H.do_IMF(alpha=2.35)
 
-
-if False:
-    color=iso['Bessell_B']-iso['Bessell_V']
-    mag=iso['Bessell_V']
-    iso_string=LineString(zip(color,mag))
-
-    #define CMD grid
-    NX=100
-    NY=100
-    XMIN,XMAX = -0.5,2.5
-    YMIN,YMAX = -6,20
-    color_grid = linspace(XMIN,XMAX,NX)
-    mag_grid = linspace(YMIN,YMAX,NY)
-
-    #list of hess boxes
-    hessboxes=[]
-    for x in range(NX-1):
-        xmin, xmax = color_grid[x], color_grid[x+1]
-        for y in range(NY-1):
-            ymin, ymax =mag_grid[y], mag_grid[y+1]
-            p0=(xmin,ymin)
-            p1=(xmax,ymin)
-            p2=(xmax,ymax)
-            p3=(xmin,ymax)
-            p4=(xmin,ymin)
-            l=LineString((p0,p1,p2,p3,p4))
-            if iso_string.intersects(l):
-                c=array(iso_string.intersection(l))
-                h=HessBox(xmin,ymin,xmax,ymax,c)
-                h.mass_intervals=get_mass_intervals(h)
-                hessboxes.append(h)
-
-    print len(hessboxes)
-
-    #for i,hb in enumerate(hessboxes):
-    #    masses=get_mass_intervals(hb)
-    #    print i, masses
+    #now make a plot of the Hess diagram
+    figure(1,figsize=(8,8))
+    for box in H.boxes:
+        if box.intersects:
+            scatter(box.center[0],box.center[1], c=box.IMF_weight, marker='s', s=20, vmin=0, vmax=0.27, edgecolors='none', cmap='viridis')
+    ylim(22,8)
+    xlabel('V-I')
+    ylabel('V')
+    colorbar()
+    show()
