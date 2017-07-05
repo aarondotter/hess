@@ -8,6 +8,8 @@ class HessDiagram:
         self.NX=nx; self.NY=ny
         self.Xgrid=linspace(self.XMIN,self.XMAX,self.NX)
         self.Ygrid=linspace(self.YMIN,self.YMAX,self.NY)
+        self._IMF=zeros((self.NX-1)*(self.NY-1))
+        self.IMF_weights=None
         self.boxes=[]
         for i in range(self.NX-1):
             x0,x1=self.Xgrid[i],self.Xgrid[i+1]
@@ -28,9 +30,15 @@ class HessDiagram:
             box.iso_intersection(self.iso_string)
             box.set_mass_intervals(self.iso,self.isoX,self.isoY)
 
+    def _coord(self,i): return i%self.NY, i/self.NY
+            
     def do_IMF(self,alpha=2.35):
-        for box in self.boxes:
-            box.IMF_calc(alpha)
+        for i,box in enumerate(self.boxes):
+            iX,iY=self._coord(i)
+            if box.intersects:
+                box.IMF_calc(alpha)
+            self._IMF[i]=box.IMF_weight
+        self.IMF_weights = reshape(a=self._IMF,newshape=(self.NX-1,self.NY-1),order='F')
             
 class HessBox:
     def __init__(self,xmin,ymin,xmax,ymax):
@@ -103,7 +111,11 @@ class HessBox:
             self.mass_intervals=reshape(masses,(-1,2))
 
     def IMF_calc(self,alpha=2.35):
-        def N(M,alpha): return pow(M,1-alpha)/(1-alpha)
+        def N(M,alpha):
+            if M != 0:
+                return pow(M,1-alpha)/(1-alpha)
+            else:
+                return 0.0
         IMF_weight = 0.0
         for point in self.mass_intervals:
             Mlo=min(point)
@@ -131,13 +143,18 @@ if __name__ == '__main__':
     H.do_mass_intervals()
     H.do_IMF(alpha=2.35)
 
-    #now make a plot of the Hess diagram
-    figure(1,figsize=(8,8))
-    for box in H.boxes:
-        if box.intersects:
-            scatter(box.center[0],box.center[1], c=box.IMF_weight, marker='s', s=20, vmin=0, vmax=0.27, edgecolors='none', cmap='viridis')
-    ylim(22,8)
-    xlabel('V-I')
-    ylabel('V')
-    colorbar()
-    show()
+    if True:
+        #now make a plot of the Hess diagram
+        figure(1,figsize=(8,8))
+        for box in H.boxes:
+            if box.intersects:
+                scatter(box.center[0],box.center[1], c=box.IMF_weight, marker='s', s=20, vmin=0, vmax=0.27, edgecolors='none', cmap='viridis')
+        ylim(22,8)
+        xlabel('V-I')
+        ylabel('V')
+        colorbar()
+
+        figure(2,figsize=(8,8))
+        pcolormesh(H.IMF_weights,vmin=0,vmax=0.27,cmap='viridis')
+        colorbar()
+        show()
